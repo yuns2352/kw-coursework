@@ -1,0 +1,148 @@
+import random
+import time
+import math
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# ----- Graph implementations -----
+
+class AdjacencyMatrixGraph:
+    def __init__(self, n: int):
+        self.n = n
+        self.matrix = [[0] * n for _ in range(n)]
+
+    def add_edge(self, u: int, v: int) -> None:
+        if 0 <= u < self.n and 0 <= v < self.n and u != v:
+            self.matrix[u][v] = 1
+            self.matrix[v][u] = 1
+
+    def has_edge(self, u: int, v: int) -> bool:
+        if 0 <= u < self.n and 0 <= v < self.n:
+            return self.matrix[u][v] == 1
+        return False
+
+    def get_neighbors(self, u: int):
+        if not (0 <= u < self.n):
+            return []
+        neighbors = []
+        row = self.matrix[u]
+        for v in range(self.n):
+            if row[v] == 1:
+                neighbors.append(v)
+        return neighbors
+
+
+class AdjacencyListGraph:
+    def __init__(self, n: int):
+        self.n = n
+        self.adj = [[] for _ in range(n)]
+
+    def add_edge(self, u: int, v: int) -> None:
+        if 0 <= u < self.n and 0 <= v < self.n and u != v:
+            if v not in self.adj[u]:
+                self.adj[u].append(v)
+            if u not in self.adj[v]:
+                self.adj[v].append(u)
+
+    def has_edge(self, u: int, v: int) -> bool:
+        if 0 <= u < self.n and 0 <= v < self.n:
+            return v in self.adj[u]
+        return False
+
+    def get_neighbors(self, u: int):
+        if not (0 <= u < self.n):
+            return []
+        return list(self.adj[u])
+
+
+# ----- Helpers for experiment -----
+
+def generate_edges(n: int, density: float):
+    max_edges = n * (n - 1) // 2
+    target_edges = int(max_edges * density)
+    edges = set()
+    while len(edges) < target_edges:
+        u = random.randrange(n)
+        v = random.randrange(n)
+        if u == v:
+            continue
+        if u > v:
+            u, v = v, u
+        edges.add((u, v))
+    return list(edges)
+
+
+def benchmark_has_edge(graph, n: int, edges, num_queries: int = 3000):
+    existing_edges = random.sample(edges, min(len(edges), num_queries // 2))
+    non_edges = []
+    while len(non_edges) < num_queries - len(existing_edges):
+        u = random.randrange(n)
+        v = random.randrange(n)
+        if u == v:
+            continue
+        if not graph.has_edge(u, v):
+            non_edges.append((u, v))
+    queries = existing_edges + non_edges
+    random.shuffle(queries)
+
+    start = time.perf_counter()
+    for (u, v) in queries:
+        graph.has_edge(u, v)
+    end = time.perf_counter()
+
+    return (end - start) / len(queries)
+
+
+def benchmark_get_neighbors(graph, n: int, num_queries: int = 3000):
+    nodes = [random.randrange(n) for _ in range(num_queries)]
+    start = time.perf_counter()
+    for u in nodes:
+        graph.get_neighbors(u)
+    end = time.perf_counter()
+    return (end - start) / num_queries
+
+
+# ----- Run experiment -----
+
+random.seed(0)
+
+Ns = [200, 400, 800]
+densities = {"dense": 0.5, "sparse": 0.01}
+
+records = []
+
+for n in Ns:
+    for label, density in densities.items():
+        edges = generate_edges(n, density)
+
+        # Matrix
+        mat_graph = AdjacencyMatrixGraph(n)
+        for u, v in edges:
+            mat_graph.add_edge(u, v)
+        mat_has = benchmark_has_edge(mat_graph, n, edges)
+        mat_nei = benchmark_get_neighbors(mat_graph, n)
+
+        # List
+        list_graph = AdjacencyListGraph(n)
+        for u, v in edges:
+            list_graph.add_edge(u, v)
+        list_has = benchmark_has_edge(list_graph, n, edges)
+        list_nei = benchmark_get_neighbors(list_graph, n)
+
+        records.append({
+            "N": n,
+            "Type": label,
+            "Rep": "Matrix",
+            "has_edge_avg_sec": mat_has,
+            "get_neighbors_avg_sec": mat_nei,
+        })
+        records.append({
+            "N": n,
+            "Type": label,
+            "Rep": "List",
+            "has_edge_avg_sec": list_has,
+            "get_neighbors_avg_sec": list_nei,
+        })
+
+df = pd.DataFrame(records)
+df

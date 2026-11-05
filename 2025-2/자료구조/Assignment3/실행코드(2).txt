@@ -1,0 +1,41 @@
+import matplotlib.pyplot as plt
+
+# Helper for plotting
+def plot_metric(df, graph_type: str, metric: str, title_suffix: str, ylabel: str, filename: str):
+    sub = df[df["Type"] == graph_type]
+    Ns_sorted = sorted(sub["N"].unique())
+
+    mat_vals = []
+    list_vals = []
+    for n in Ns_sorted:
+        mat_vals.append(float(sub[(sub["N"] == n) & (sub["Rep"] == "Matrix")][metric]))
+        list_vals.append(float(sub[(sub["N"] == n) & (sub["Rep"] == "List")][metric]))
+
+    plt.figure()
+    plt.plot(Ns_sorted, mat_vals, marker="o", label="Adjacency Matrix")
+    plt.plot(Ns_sorted, list_vals, marker="o", label="Adjacency List")
+    plt.title(f"{graph_type.capitalize()} graph - {title_suffix}")
+    plt.xlabel("N (number of nodes)")
+    plt.ylabel(ylabel)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+# Dense graphs
+plot_metric(df, "dense", "has_edge_avg_sec",
+            "Average has_edge() time", "Average time per call (sec)",
+            "dense_has_edge.png")
+
+plot_metric(df, "dense", "get_neighbors_avg_sec",
+            "Average get_neighbors() time", "Average time per call (sec)",
+            "dense_get_neighbors.png")
+
+# Sparse graphs
+plot_metric(df, "sparse", "has_edge_avg_sec",
+            "Average has_edge() time", "Average time per call (sec)",
+            "sparse_has_edge.png")
+
+plot_metric(df, "sparse", "get_neighbors_avg_sec",
+            "Average get_neighbors() time", "Average time per call (sec)",
+            "sparse_get_neighbors.png")
